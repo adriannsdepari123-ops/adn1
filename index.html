@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adrian - Next-Gen 3D Interactive Portfolio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js untuk Radar Skill -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js untuk Efek Latar Belakang 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #1e1b4b; border-radius: 9999px; border: 2px solid #020617; }
+        ::-webkit-scrollbar-thumb:hover { background: #312e81; }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel-hover:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.15);
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
+        }
+        .ambient-glow { animation: pulse-glow 8s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans overflow-x-hidden relative selection:bg-indigo-500/30 selection:text-indigo-200">
+
+    <div id="canvas-container" class="fixed inset-0 -z-20 w-full h-full pointer-events-none"></div>
+
+    <div class="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none ambient-glow -z-10"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none ambient-glow -z-10"></div>
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 pointer-events-none max-w-sm"></div>
+
+    <header class="sticky top-0 w-full z-40 border-b border-slate-800/60 bg-slate-950/70 backdrop-blur-md px-4 md:px-8 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-800 p-1 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/5 hover:border-indigo-500/40 transition">
+                    <img src="https://i.ibb.co.com/FLzydg6Y/sekolah.jpg" alt="Logo Sekolah" class="w-full h-full object-contain rounded-lg" onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'text-[9px] text-indigo-400 font-bold font-mono\'>SCH</span>';">
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-xl shadow-lg shadow-indigo-500/20">
+                        <i data-lucide="terminal" class="w-5 h-5 text-white animate-pulse"></i>
+                    </div>
+                    <div>
+                        <span class="font-extrabold text-sm tracking-tight text-white">PORTFOLIO.Adrian</span>
+                        <p class="text-[10px] text-indigo-400 font-semibold tracking-widest uppercase">Creative Student</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 bg-slate-900/60 border border-slate-800/80 rounded-full px-4 py-1.5 shadow-inner">
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-extrabold text-indigo-400">LV.</span>
+                        <span id="dev-level" class="text-sm font-black text-white">1</span>
+                    </div>
+                    <div class="w-24 md:w-32 bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800/50">
+                        <div id="xp-bar" class="bg-gradient-to-r from-indigo-500 to-violet-500 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <span id="xp-text" class="text-[10px] text-slate-400 font-mono">0/100 XP</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <nav class="flex items-center gap-1 md:gap-2">
+                    <button onclick="switchTab('home')" class="nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" data-tab="home">Home</button>
+                    <button onclick="switchTab('skills')" class="nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 text-slate-400 hover:text-white" data-tab="skills">Skill</button>
+                    <button onclick="switchTab('projects')" class="nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 text-slate-400 hover:text-white" data-tab="projects">Proyek</button>
+                    <button onclick="switchTab('game')" class="nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 text-slate-400 hover:text-white" data-tab="game">Mini Game</button>
+                </nav>
+
+                <div class="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-800 p-1 flex items-center justify-center shrink-0 shadow-lg shadow-violet-500/5 hover:border-violet-500/40 transition">
+                    <img src="https://i.ibb.co.com/8nLzDqj6/ekskul.png" alt="Logo Ekskul" class="w-full h-full object-contain rounded-lg" onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'text-[9px] text-violet-400 font-bold font-mono\'>EKS</span>';">
+                </div>
+            </div>
+
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 relative z-10 min-h-[calc(100vh-140px)]">
+
+        <!-- TAB 1: HOME -->
+        <section id="tab-home" class="tab-content grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            
+            <div class="lg:col-span-1 flex flex-col gap-6">
+                <div class="glass-panel rounded-3xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden group">
+                    <div class="absolute top-4 right-4 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span class="text-[9px] text-emerald-400 font-bold tracking-wider uppercase">Open To Project</span>
+                    </div>
+
+                    <div class="w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-indigo-500 via-pink-500 to-violet-600 p-1 shadow-2xl relative mb-6 group">
+                        <div class="w-full h-full bg-slate-950 rounded-full overflow-hidden flex items-center justify-center border-4 border-slate-950">
+                            <img src="https://i.ibb.co.com/1fYbW4NW/profile1.jpg" 
+                                 alt="Foto Profil Adrian" 
+                                 class="w-full h-full object-cover group-hover:scale-110 transition duration-500 ease-out"
+                                 onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1543610892-0b1f7e6d8ac1?auto=format&fit=crop&w=300&q=80';">
+                        </div>
+                    </div>
+
+                    <h2 class="text-xl md:text-2xl font-black text-white">Adrian</h2>
+                    <p class="text-xs text-indigo-400 font-mono mt-1">&lt; Full-Stack Student Developer /&gt;</p>
+                
+                    <p class="text-slate-400 text-xs md:text-sm mt-4 leading-relaxed">
+                        Senang memecahkan kode rumit, menyulap interface keren, dan berteman dengan kecerdasan buatan. Mari kolaborasi!
+                    </p>
+                </div>
+                <button onclick="switchTab('game')" class="px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-2xl text-xs font-bold text-white transition duration-300 shadow-xl shadow-indigo-500/15 flex items-center gap-2 self-start md:self-auto shrink-0 justify-center">
+                    <i data-lucide="gamepad-2" class="w-4 h-4 animate-bounce"></i> Main Game & Dapatkan XP
+                </button>
+            </div>
+
+            <!-- Chat AI (Tampilan Bersih, Otomatis Langsung Pakai) -->
+            <div class="lg:col-span-1 glass-panel rounded-3xl flex flex-col h-[400px]">
+                <div class="p-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/20 rounded-t-3xl">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                            <i data-lucide="bot" class="w-4.5 h-4.5 text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">Interactive Portofolio Adrian</h4>
+                            <span class="text-[9px] text-emerald-400 flex items-center gap-1">
+                                <span class="w-1 h-1 rounded-full bg-emerald-500"></span> Online • Gemini Powered
+                            </span>
+                        </div>
+                    </div>
+                    <button onclick="clearAIChat()" class="text-[10px] text-slate-500 hover:text-rose-400 transition flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3 h-3"></i> Bersihkan
+                    </button>
+                </div>
+
+                <div id="ai-chat-box" class="flex-1 overflow-y-auto p-4 space-y-3 font-medium text-xs md:text-sm">
+                    <div class="flex gap-2.5 max-w-[85%]">
+                        <div class="w-7 h-7 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 self-end">
+                            <i data-lucide="bot" class="w-3.5 h-3.5 text-indigo-400"></i>
+                        </div>
+                        <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl rounded-bl-none text-slate-200 text-xs">
+                            Halo! Saya AI Asisten Adrian. Tanyakan apa saja tentang skill, proyek, atau pengalaman Adrian!
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-800/80 bg-slate-900/10 rounded-b-3xl">
+                    <form id="ai-chat-form" onsubmit="sendAIChatMessage(event)" class="flex gap-2">
+                        <input id="ai-chat-input" type="text" placeholder="Ketik pertanyaanmu..." class="flex-1 px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-xs text-slate-100 placeholder:text-slate-600 transition" required>
+                        <button type="submit" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-xs text-white transition duration-200 flex items-center gap-1 shadow-lg shadow-indigo-600/10 shrink-0">
+                            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Guestbook -->
+            <div class="lg:col-span-1 glass-panel rounded-3xl p-6 flex flex-col h-[400px] justify-between">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                            <i data-lucide="message-square" class="w-4.5 h-4.5 text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">Buku Tamu / Testimoni</h4>
+                            <p class="text-[9px] text-slate-500">Tulis pesan untuk Adrian</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="guestbook-list" class="flex-1 overflow-y-auto space-y-3 my-3 pr-1"></div>
+
+                <div class="space-y-2 pt-3 border-t border-slate-800/80">
+                    <div class="flex gap-2">
+                        <input id="guestbook-name" type="text" placeholder="Nama Anda" class="w-1/3 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-xs text-slate-100 placeholder:text-slate-600 transition" required>
+                        <input id="guestbook-msg" type="text" placeholder="Tulis testimoni keren..." class="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-xs text-slate-100 placeholder:text-slate-600 transition" required>
+                    </div>
+                    <button onclick="addGuestbookMessage()" class="w-full py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-xs text-white transition duration-200 flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/10">
+                        <span>Kirim Testimoni</span>
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- TAB 2: SKILLS -->
+        <section id="tab-skills" class="tab-content space-y-8 hidden">
+            <div class="text-center max-w-xl mx-auto space-y-2">
+                <span class="text-xs text-indigo-400 font-mono uppercase tracking-widest">&lt; Skill Matrix /&gt;</span>
+                <h2 class="text-2xl md:text-3xl font-black text-white">Keahlian & Radar Teknologi</h2>
+                <p class="text-slate-400 text-xs md:text-sm">Evaluasi keahlian teknis saya yang tersusun dalam visualisasi interaktif.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="glass-panel rounded-3xl p-6 md:p-8 flex flex-col justify-center items-center h-[400px]">
+                    <h3 class="font-bold text-sm text-slate-400 mb-4 text-center self-start flex items-center gap-2">
+                        <i data-lucide="pie-chart" class="w-4 h-4 text-indigo-400"></i>
+                        <span>Radar Distribusi Keahlian</span>
+                    </h3>
+                    <div class="relative w-full h-[320px]">
+                        <canvas id="skillsRadarChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="glass-panel rounded-3xl p-6 space-y-4">
+                        <h3 class="font-bold text-base text-white">Bahasa & Framework Terpilih</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl flex items-center gap-3">
+                                <div class="p-2 bg-yellow-500/10 text-yellow-500 rounded-lg">
+                                    <i data-lucide="code" class="w-4.5 h-4.5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">JavaScript</h4>
+                                    <span class="text-[9px] text-slate-500 font-medium">92% Advanced</span>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl flex items-center gap-3">
+                                <div class="p-2 bg-sky-500/10 text-sky-400 rounded-lg">
+                                    <i data-lucide="palette" class="w-4.5 h-4.5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">Tailwind CSS</h4>
+                                    <span class="text-[9px] text-slate-500 font-medium">95% Expert</span>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl flex items-center gap-3">
+                                <div class="p-2 bg-purple-500/10 text-purple-400 rounded-lg">
+                                    <i data-lucide="box" class="w-4.5 h-4.5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">Three.js (3D)</h4>
+                                    <span class="text-[9px] text-slate-500 font-medium">80% Intermediate</span>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl flex items-center gap-3">
+                                <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                                    <i data-lucide="cpu" class="w-4.5 h-4.5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">Node.js / Express</h4>
+                                    <span class="text-[9px] text-slate-500 font-medium">85% Advanced</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-3xl p-6 space-y-4">
+                        <h3 class="font-bold text-base text-white flex items-center gap-2">
+                            <i data-lucide="medal" class="w-5 h-5 text-indigo-400"></i>
+                            <span>Lencana & Milestone Dev</span>
+                        </h3>
+                        <div class="flex flex-wrap gap-2.5">
+                            <span class="px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5">
+                                <i data-lucide="copy" class="w-3.5 h-3.5 text-indigo-400"></i> StackOverflow Copy-Paste Master
+                            </span>
+                            <span class="px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 text-violet-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5">
+                                <i data-lucide="moon" class="w-3.5 h-3.5 text-violet-400"></i> Begadang Coding Enthusiast
+                            </span>
+                            <span class="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5">
+                                <i data-lucide="bug" class="w-3.5 h-3.5 text-emerald-400"></i> Professional Bug Creator & Slayer
+                            </span>
+                            <span class="px-3 py-1.5 bg-pink-500/10 border border-pink-500/20 text-pink-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-pink-400"></i> Prompt Engineering Specialist
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: PROJECTS -->
+        <section id="tab-projects" class="tab-content space-y-8 hidden">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div class="space-y-2">
+                    <span class="text-xs text-indigo-400 font-mono uppercase tracking-widest">&lt; Creative Hub /&gt;</span>
+                    <h2 class="text-2xl md:text-3xl font-black text-white">Kumpulan Proyek Hebat</h2>
+                </div>
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <button onclick="filterProjects('all')" class="project-filter-btn px-3.5 py-1.5 bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-xs font-semibold transition" data-filter="all">Semua</button>
+                    <button onclick="filterProjects('web')" class="project-filter-btn px-3.5 py-1.5 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition" data-filter="web">Web App</button>
+                    <button onclick="filterProjects('game')" class="project-filter-btn px-3.5 py-1.5 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition" data-filter="game">Game</button>
+                    <button onclick="filterProjects('ai')" class="project-filter-btn px-3.5 py-1.5 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition" data-filter="ai">AI</button>
+                </div>
+            </div>
+
+            <div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+            <div id="project-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span id="modal-project-cat" class="px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold rounded-lg uppercase tracking-wider">Mata Pelajaran / Judul</span>
+                        <button onclick="closeProjectModal()" class="p-1.5 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="w-full h-40 bg-slate-950 rounded-2xl flex items-center justify-center border border-slate-800 relative overflow-hidden group">
+                        <svg class="w-16 h-16 text-indigo-500/40 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                            <line x1="8" y1="21" x2="16" y2="21" />
+                            <line x1="12" y1="17" x2="12" y2="21" />
+                        </svg>
+                    </div>
+                    <div class="space-y-2">
+                        <h3 id="modal-project-title" class="text-xl font-bold text-white">Judul Proyek</h3>
+                        <p id="modal-project-desc" class="text-xs md:text-sm text-slate-400 leading-relaxed">Deskripsi lengkap dari proyek.</p>
+                    </div>
+                    <div class="flex gap-2 pt-2">
+                        <button onclick="claimProjectXP()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-xs text-white transition flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/15">
+                            <i data-lucide="zap" class="w-4 h-4"></i> Pelajari & Ambil +15 XP
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: MINI GAME -->
+        <section id="tab-game" class="tab-content space-y-6 hidden">
+            <div class="text-center max-w-xl mx-auto space-y-2">
+                <span class="text-xs text-emerald-400 font-mono uppercase tracking-widest">&lt; Arena Game /&gt;</span>
+                <h2 class="text-2xl md:text-3xl font-black text-white">Retro Code-Typer Game</h2>
+                <p class="text-slate-400 text-xs md:text-sm">Buktikan kecepatan coding-mu! Ketik ulang baris kode di bawah secepat mungkin sebelum waktu habis untuk merebut bonus XP.</p>
+            </div>
+
+            <div class="max-w-2xl mx-auto glass-panel rounded-3xl p-6 md:p-8 space-y-6 flex flex-col relative overflow-hidden">
+                <div class="flex justify-between items-center text-xs border-b border-slate-800 pb-4">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-slate-500 font-bold uppercase tracking-wider">Waktu:</span>
+                        <span id="game-timer" class="font-mono font-bold text-amber-400 text-base">30s</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-slate-500 font-bold uppercase tracking-wider">Skor:</span>
+                        <span id="game-score" class="font-mono font-bold text-emerald-400 text-base">0</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-slate-500 font-bold uppercase tracking-wider">XP Terkumpul:</span>
+                        <span id="game-xp" class="font-mono font-bold text-indigo-400 text-base">+0 XP</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950/80 border border-slate-800 p-6 rounded-2xl relative">
+                    <div class="absolute top-3 left-3 flex gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    </div>
+                    <div class="text-right text-[10px] text-slate-600 font-mono">javascript</div>
+                    <div id="game-code-display" class="font-mono text-sm md:text-base text-slate-300 select-none whitespace-pre-line leading-relaxed text-center py-4">
+                        const portfolio = new DeveloperPortfolio();
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <input id="game-input" type="text" placeholder="Mulai mengetik di sini..." class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-emerald-500 text-center font-mono text-sm tracking-wide text-slate-100 transition" disabled>
+                    
+                    <div class="flex gap-2">
+                        <button id="game-control-btn" onclick="startGame()" class="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs transition duration-300 flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/15">
+                            <i data-lucide="play" class="w-4 h-4"></i> Mulai Bermain
+                        </button>
+                        <button onclick="resetGame()" class="p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="w-full border-t border-slate-900 py-6 bg-slate-950/80 z-10 relative">
+        <div class="max-w-7xl mx-auto px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+            <p>© 2026 Adrian. All rights reserved.</p>
+            <div class="flex gap-4">
+                <a href="https://rey123.netlify.app/" class="hover:text-indigo-400 transition">link-belajar</a>
+                <a href="https://github.com/adriannsdepari123-ops" class="hover:text-indigo-400 transition">GitHub</a>
+                <a href="https://api.whatsapp.com/send/?phone=085692382270&text&type=phone_number&app_absent=0" class="hover:text-indigo-400 transition">whatsapp</a>
+                <a href="https://www.instagram.com/adnn123777" class="hover:text-indigo-400 transition">Instagram</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // =========================================================================
+        // MASUKKAN API KEY GEMINI ANDA DI BAWAH INI SUPAYA CLIENT LANGSUNG BISA PAKAI
+        // =========================================================================
+        const GEMINI_API_KEY = "MASUKKAN_API_KEY_GEMINI_DI_SINI"; 
+
+        let userLevel = 1;
+        let userXP = 0;
+        let targetXP = 100;
+        let unlockedProjectXP = [];
+
+        const projectsData = [
+            { id: 1, title: 'EduSmart AI Platform', cat: 'web', desc: 'Aplikasi asisten belajar komprehensif menggunakan Gemini AI API. Memiliki asisten chat, pembuat flashcard instan, visualisasi budget planner dengan grafik, dan papan tugas kanban.', xp: 15 },
+            { id: 2, title: 'Quantum Space Shooter', cat: 'game', desc: 'Game aksi 2D HTML5 Canvas dengan mekanika fisika real-time, gelombang serangan musuh berbasis algoritma dinamis, dan integrasi Sound Synth API.', xp: 15 },
+            { id: 3, title: 'Smart-Home AI Brain', cat: 'ai', desc: 'Sistem analisis data berbasis IoT untuk mengatur efisiensi konsumsi daya listrik rumah tangga. Terkoneksi dengan model pembelajaran mesin ringan.', xp: 15 },
+            { id: 4, title: 'Decentralized Task Ledger', cat: 'web', desc: 'Papan manajemen kolaborasi tim dengan arsitektur penyimpanan lokal terdistribusi untuk memastikan ketahanan data dari mati listrik.', xp: 15 },
+            { id: 5, title: 'Pixel Quest RPG Engine', cat: 'game', desc: 'Engine visual game bermain peran (RPG) retro berbasis Javascript murni dengan editor peta (map-editor) modular built-in.', xp: 15 }
+        ];
+
+        let guestbookData = [
+            { name: 'Brian', msg: 'Portofolionya luar biasa keren, efek 3D-nya mulus banget! 🚀', color: 'text-indigo-400' },
+            { name: 'Sarah', msg: 'Fitur integrasi AI-nya sangat kreatif. Nilai proyek ini 100!', color: 'text-emerald-400' }
+        ];
+
+        const codingSnippets = [
+            "const developer = new WebDeveloper();",
+            "function calculateXpPoints(bonus) {",
+            "await fetch('https://api.gemini.ai');",
+            "document.getElementById('level').innerText;",
+            "import { Scene, Camera } from 'three';",
+            "ctx.shadowColor = 'rgba(99,102,241,1)';"
+        ];
+        let gameTimer = 30;
+        let gameScore = 0;
+        let isGameRunning = false;
+        let gameInterval = null;
+        let currentSnippet = "";
+        let activeModalProject = null;
+
+        async function askGemini(prompt) {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "MASUKKAN_API_KEY_GEMINI_DI_SINI") {
+                return "Maaf, API Key Gemini belum dipasang oleh pemilik website di dalam kode script.";
+            }
+
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const systemInstruction = `Kamu adalah AI Assistant resmi untuk portofolio interaktif milik Adrian, seorang Full-Stack Student Developer.
+Jawab pertanyaan pengunjung dengan ramah, suportif, bersemangat, dan ringkas.
+Data Portofolio Adrian:
+- Nama: Adrian
+- Role: Full-Stack Student Developer
+- Keahlian Utama: JavaScript (92%), Tailwind CSS (95%), Three.js (80%), Node.js/Express (85%).
+- Proyek: 
+  1. EduSmart AI Platform (Web App dengan Gemini AI, Flashcard, Kanban)
+  2. Quantum Space Shooter (Game 2D Canvas Physics)
+  3. Smart-Home AI Brain (AI/IoT Energy Efficiency)
+  4. Decentralized Task Ledger (Web Collaboration)
+  5. Pixel Quest RPG Engine (Engine Visual Game RPG Retro)`;
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                role: 'user',
+                                parts: [{ text: systemInstruction + "\n\nPertanyaan Pengunjung: " + prompt }]
+                            }
+                        ]
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.candidates[0].content.parts[0].text;
+                } else {
+                    return "Maaf, terjadi kendala saat mengoneksikan ke Gemini AI.";
+                }
+            } catch (err) {
+                return "Koneksi gagal saat menghubungi server AI.";
+            }
+        }
+
+        let scene, camera, renderer, starField;
+        let mouseX = 0, mouseY = 0;
+
+        function init3DBackground() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsCount = 500;
+            const positions = new Float32Array(starsCount * 3);
+
+            for (let i = 0; i < starsCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 10;
+                positions[i + 1] = (Math.random() - 0.5) * 10;
+                positions[i + 2] = (Math.random() - 0.5) * 10;
+            }
+
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const starsMaterial = new THREE.PointsMaterial({
+                size: 0.04,
+                color: 0x6366f1,
+                transparent: true,
+                opacity: 0.8,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+
+            starField = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(starField);
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (starField) {
+                starField.rotation.y += 0.001;
+                starField.rotation.x += 0.0005;
+                starField.rotation.y += (mouseX - starField.rotation.y) * 0.05;
+                starField.rotation.x += (mouseY - starField.rotation.x) * 0.05;
+            }
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth - 0.5) * 0.5;
+            mouseY = (e.clientY / window.innerHeight - 0.5) * 0.5;
+        });
+
+        window.addEventListener('resize', () => {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-2xl shadow-2xl flex items-center gap-3 border transition duration-300 transform translate-y-3 opacity-0 pointer-events-auto max-w-sm bg-slate-900 border-indigo-500/30 text-indigo-200 shadow-indigo-500/10`;
+            
+            toast.innerHTML = `
+                <i data-lucide="check-circle" class="w-5 h-5 shrink-0 text-indigo-400"></i>
+                <span class="text-xs font-semibold leading-relaxed">${message}</span>
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => toast.classList.remove('translate-y-3', 'opacity-0'), 20);
+            setTimeout(() => {
+                toast.classList.add('translate-y-3', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function addXP(amount) {
+            userXP += amount;
+            if (userXP >= targetXP) {
+                userLevel++;
+                userXP = userXP - targetXP;
+                targetXP = Math.floor(targetXP * 1.5);
+                showToast(`🏆 LUAR BIASA! Kamu naik ke LEVEL ${userLevel}!`, 'success');
+            } else {
+                showToast(`+${amount} XP diperoleh!`, 'success');
+            }
+            updateGamificationUI();
+            saveGamificationToLocal();
+        }
+
+        function updateGamificationUI() {
+            document.getElementById('dev-level').innerText = userLevel;
+            const percentage = (userXP / targetXP) * 100;
+            document.getElementById('xp-bar').style.width = `${percentage}%`;
+            document.getElementById('xp-text').innerText = `${userXP}/${targetXP} XP`;
+        }
+
+        function saveGamificationToLocal() {
+            localStorage.setItem('portfolio_level', userLevel);
+            localStorage.setItem('portfolio_xp', userXP);
+            localStorage.setItem('portfolio_targetXp', targetXP);
+            localStorage.setItem('portfolio_unlocked_xp', JSON.stringify(unlockedProjectXP));
+        }
+
+        function loadGamificationFromLocal() {
+            const savedLvl = localStorage.getItem('portfolio_level');
+            const savedXp = localStorage.getItem('portfolio_xp');
+            const savedTarget = localStorage.getItem('portfolio_targetXp');
+            const savedUnlocked = localStorage.getItem('portfolio_unlocked_xp');
+
+            if (savedLvl) userLevel = parseInt(savedLvl);
+            if (savedXp) userXP = parseInt(savedXp);
+            if (savedTarget) targetXP = parseInt(savedTarget);
+            if (savedUnlocked) unlockedProjectXP = JSON.parse(savedUnlocked);
+
+            updateGamificationUI();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 text-slate-400 hover:text-white";
+            });
+            const activeBtn = document.querySelector(`.nav-btn[data-tab="${tabId}"]`);
+            if (activeBtn) {
+                activeBtn.className = "nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 bg-indigo-600/20 text-indigo-300 border border-indigo-500/30";
+            }
+
+            if (tabId === 'skills') renderSkillsRadar();
+            if (tabId === 'projects') renderProjects('all');
+            addXP(2);
+        }
+
+        async function sendAIChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('ai-chat-input');
+            const chatBox = document.getElementById('ai-chat-box');
+            const userMsg = input.value.trim();
+            if(!userMsg) return;
+
+            const userBubble = document.createElement('div');
+            userBubble.className = 'flex gap-2.5 justify-end max-w-[85%] ml-auto';
+            userBubble.innerHTML = `<div class="p-3 bg-indigo-600 text-white rounded-2xl rounded-tr-none">${escapeHTML(userMsg)}</div>`;
+            chatBox.appendChild(userBubble);
+            input.value = "";
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const loadBubble = document.createElement('div');
+            loadBubble.id = "chat-loading-placeholder";
+            loadBubble.className = "flex gap-2.5 max-w-[85%] animate-pulse";
+            loadBubble.innerHTML = `
+                <div class="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                    <i data-lucide="bot" class="w-3.5 h-3.5 text-slate-400"></i>
+                </div>
+                <div class="p-3 bg-slate-900/60 border border-slate-800 text-slate-500 rounded-2xl rounded-bl-none">Mengetik...</div>
+            `;
+            chatBox.appendChild(loadBubble);
+            lucide.createIcons();
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const aiReply = await askGemini(userMsg);
+
+            const placeholder = document.getElementById('chat-loading-placeholder');
+            if (placeholder) placeholder.remove();
+
+            const aiBubble = document.createElement('div');
+            aiBubble.className = "flex gap-2.5 max-w-[85%]";
+            aiBubble.innerHTML = `
+                <div class="w-7 h-7 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 self-end">
+                    <i data-lucide="bot" class="w-3.5 h-3.5 text-indigo-400"></i>
+                </div>
+                <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl rounded-bl-none text-slate-200 whitespace-pre-line">${escapeHTML(aiReply)}</div>
+            `;
+            chatBox.appendChild(aiBubble);
+            lucide.createIcons();
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            addXP(8);
+        }
+
+        function clearAIChat() {
+            const chatBox = document.getElementById('ai-chat-box');
+            chatBox.innerHTML = `
+                <div class="flex gap-2.5 max-w-[85%]">
+                    <div class="w-7 h-7 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 self-end">
+                        <i data-lucide="bot" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    </div>
+                    <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl rounded-bl-none text-slate-200">
+                        Chat dibersihkan! Silakan ajukan pertanyaan baru seputar Adrian.
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        let skillsChartInstance = null;
+        function renderSkillsRadar() {
+            const ctx = document.getElementById('skillsRadarChart').getContext('2d');
+            if (skillsChartInstance) skillsChartInstance.destroy();
+
+            skillsChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Frontend Dev', 'Backend Logic', 'UI/UX Crafting', 'Three.js 3D', 'AI Integration', 'Game Development'],
+                    datasets: [{
+                        label: 'Skor (%)',
+                        data: [95, 85, 90, 80, 85, 75],
+                        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                        borderColor: '#6366f1',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#818cf8',
+                        pointBorderColor: '#020617',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        r: {
+                            grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                            angleLines: { color: 'rgba(255, 255, 255, 0.08)' },
+                            pointLabels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 10, weight: 'bold' } },
+                            ticks: { display: false },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderProjects(filterValue = 'all') {
+            const grid = document.getElementById('projects-grid');
+            grid.innerHTML = "";
+
+            const filtered = filterValue === 'all' 
+                ? projectsData 
+                : projectsData.filter(p => p.cat === filterValue);
+
+            filtered.forEach(p => {
+                const card = document.createElement('div');
+                card.className = "glass-panel glass-panel-hover rounded-3xl p-5 md:p-6 flex flex-col justify-between items-start transition duration-300 transform hover:-translate-y-1 relative group cursor-pointer";
+                card.onclick = () => openProjectModal(p.id);
+                card.innerHTML = `
+                    <div class="space-y-3 w-full">
+                        <div class="flex justify-between items-center w-full">
+                            <span class="px-2.5 py-0.5 bg-slate-900 border border-slate-800 text-[10px] text-slate-400 rounded-lg uppercase tracking-widest font-mono">${p.cat}</span>
+                            <div class="flex items-center gap-1.5 text-xs text-indigo-400 font-bold font-mono">
+                                <i data-lucide="zap" class="w-3.5 h-3.5 text-indigo-500"></i> +${p.xp} XP
+                            </div>
+                        </div>
+                        <h4 class="font-extrabold text-base md:text-lg text-white group-hover:text-indigo-400 transition">${p.title}</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed line-clamp-3">${p.desc}</p>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 mt-5 border-t border-slate-900 pt-3 w-full group-hover:text-white transition">
+                        <span>Lihat Detail Studi</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5 transform group-hover:translate-x-1 transition duration-200"></i>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            lucide.createIcons();
+
+            document.querySelectorAll('.project-filter-btn').forEach(btn => {
+                btn.className = "project-filter-btn px-3.5 py-1.5 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition";
+            });
+            const activeBtn = document.querySelector(`.project-filter-btn[data-filter="${filterValue}"]`);
+            if(activeBtn) activeBtn.className = "project-filter-btn px-3.5 py-1.5 bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-xs font-semibold transition";
+        }
+
+        function openProjectModal(id) {
+            const project = projectsData.find(p => p.id === id);
+            if (!project) return;
+
+            activeModalProject = project;
+            document.getElementById('modal-project-cat').textContent = project.cat.toUpperCase();
+            document.getElementById('modal-project-title').textContent = project.title;
+            document.getElementById('modal-project-desc').textContent = project.desc;
+
+            document.getElementById('project-detail-modal').classList.remove('hidden');
+        }
+
+        function closeProjectModal() {
+            document.getElementById('project-detail-modal').classList.add('hidden');
+            activeModalProject = null;
+        }
+
+        function claimProjectXP() {
+            if (!activeModalProject) return;
+
+            if (unlockedProjectXP.includes(activeModalProject.id)) {
+                showToast("XP untuk proyek ini sudah pernah diambil!", "error");
+            } else {
+                unlockedProjectXP.push(activeModalProject.id);
+                addXP(activeModalProject.xp);
+                saveGamificationToLocal();
+            }
+            closeProjectModal();
+        }
+
+        function filterProjects(cat) {
+            renderProjects(cat);
+            addXP(2);
+        }
+
+        function startGame() {
+            if (isGameRunning) return;
+            isGameRunning = true;
+            gameTimer = 30;
+            gameScore = 0;
+            document.getElementById('game-score').innerText = gameScore;
+            document.getElementById('game-timer').innerText = gameTimer + "s";
+            document.getElementById('game-input').disabled = false;
+            document.getElementById('game-input').focus();
+            document.getElementById('game-control-btn').innerText = "Sedang Bermain...";
+            document.getElementById('game-control-btn').disabled = true;
+
+            nextWord();
+
+            gameInterval = setInterval(() => {
+                gameTimer--;
+                document.getElementById('game-timer').innerText = gameTimer + "s";
+                if (gameTimer <= 0) endGame();
+            }, 1000);
+        }
+
+        function nextWord() {
+            const rand = Math.floor(Math.random() * codingSnippets.length);
+            currentSnippet = codingSnippets[rand];
+            document.getElementById('game-code-display').innerText = currentSnippet;
+            document.getElementById('game-input').value = "";
+        }
+
+        document.getElementById('game-input').addEventListener('input', (e) => {
+            if(!isGameRunning) return;
+            if(e.target.value === currentSnippet) {
+                gameScore += 10;
+                document.getElementById('game-score').innerText = gameScore;
+                addXP(5);
+                document.getElementById('game-xp').innerText = `+${gameScore/2} XP`;
+                nextWord();
+            }
+        });
+
+        function endGame() {
+            clearInterval(gameInterval);
+            isGameRunning = false;
+            document.getElementById('game-input').disabled = true;
+            document.getElementById('game-control-btn').innerText = "Main Lagi";
+            document.getElementById('game-control-btn').disabled = false;
+            showToast(`🎮 Selesai! Skor: ${gameScore}!`, "success");
+        }
+
+        function resetGame() {
+            clearInterval(gameInterval);
+            isGameRunning = false;
+            gameTimer = 30;
+            gameScore = 0;
+            document.getElementById('game-timer').innerText = "30s";
+            document.getElementById('game-score').innerText = "0";
+            document.getElementById('game-xp').innerText = "+0 XP";
+            document.getElementById('game-input').value = "";
+            document.getElementById('game-input').disabled = true;
+            document.getElementById('game-code-display').innerText = "const portfolio = new DeveloperPortfolio();";
+            document.getElementById('game-control-btn').innerText = "Mulai Bermain";
+            document.getElementById('game-control-btn').disabled = false;
+        }
+
+        function addGuestbookMessage() {
+            const nameEl = document.getElementById('guestbook-name');
+            const msgEl = document.getElementById('guestbook-msg');
+            const name = nameEl.value.trim();
+            const msg = msgEl.value.trim();
+
+            if(!name || !msg) return;
+
+            const colors = ['text-indigo-400', 'text-emerald-400', 'text-pink-400', 'text-amber-400'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+            guestbookData.unshift({ name, msg, color: randomColor });
+            localStorage.setItem('portfolio_guestbook', JSON.stringify(guestbookData));
+
+            nameEl.value = "";
+            msgEl.value = "";
+            renderGuestbook();
+            addXP(25);
+        }
+
+        function renderGuestbook() {
+            const list = document.getElementById('guestbook-list');
+            list.innerHTML = "";
+            const stored = localStorage.getItem('portfolio_guestbook');
+            if (stored) guestbookData = JSON.parse(stored);
+
+            guestbookData.forEach(g => {
+                const bubble = document.createElement('div');
+                bubble.className = "p-3 bg-slate-950/60 border border-slate-800/80 rounded-2xl relative";
+                bubble.innerHTML = `
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                        <span class="font-bold text-[10px] ${g.color}">${escapeHTML(g.name)}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 leading-relaxed font-medium">${escapeHTML(g.msg)}</p>
+                `;
+                list.appendChild(bubble);
+            });
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+        }
+
+        window.onload = function() {
+            lucide.createIcons();
+            loadGamificationFromLocal();
+            renderGuestbook();
+            init3DBackground();
+            showToast("Berhasil terhubung ke Portofolio Adrian!", "success");
+        }
+    </script>
+</body>
+</html>
